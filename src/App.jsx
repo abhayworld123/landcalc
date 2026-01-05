@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
+import { useParams, useNavigate } from 'react-router-dom'
 
 const regionalUnits = {
   standard: {
@@ -164,24 +165,30 @@ const infoData = [
 ]
 
 function App() {
-  const [stateGroup, setStateGroup] = useState('standard')
+  const { stateName } = useParams()
+  const navigate = useNavigate()
   const [inputValue, setInputValue] = useState('1')
   const [inputUnit, setInputUnit] = useState('sqft')
   const [results, setResults] = useState([])
   const [error, setError] = useState('')
 
-  const currentUnits = regionalUnits[stateGroup] || regionalUnits.standard
+  // Get stateGroup from URL param, default to uttarakhand_plains
+  const stateGroup = stateName && regionalUnits[stateName] ? stateName : 'uttarakhand_plains'
+  const currentUnits = regionalUnits[stateGroup] || regionalUnits.uttarakhand_plains
 
+  // Redirect to default if invalid state name
   useEffect(() => {
-    if (currentUnits[inputUnit]) {
-      convert()
-    } else {
-      const firstUnit = Object.keys(currentUnits)[0]
-      setInputUnit(firstUnit)
+    if (stateName && !regionalUnits[stateName]) {
+      navigate('/state/uttarakhand_plains', { replace: true })
     }
-  }, [stateGroup])
+  }, [stateName, navigate])
 
-  const convert = () => {
+  // Update URL when stateGroup changes (from dropdown)
+  const handleStateChange = (newState) => {
+    navigate(`/state/${newState}`, { replace: true })
+  }
+
+  const convert = useCallback(() => {
     const value = parseFloat(inputValue)
     
     if (isNaN(value) || value <= 0) {
@@ -206,7 +213,16 @@ function App() {
     }
 
     setResults(convertedResults)
-  }
+  }, [inputValue, inputUnit, currentUnits])
+
+  useEffect(() => {
+    if (currentUnits[inputUnit]) {
+      convert()
+    } else {
+      const firstUnit = Object.keys(currentUnits)[0]
+      setInputUnit(firstUnit)
+    }
+  }, [stateGroup, currentUnits, inputUnit, convert])
 
   const handleKeyPress = (e) => {
     if (e.key === 'Enter') {
@@ -235,7 +251,7 @@ function App() {
               <select
                 id="stateGroup"
                 value={stateGroup}
-                onChange={(e) => setStateGroup(e.target.value)}
+                onChange={(e) => handleStateChange(e.target.value)}
                 className="px-4 py-3 border-2 border-gray-300 rounded-lg text-base focus:outline-none focus:border-primary-500 transition-colors"
               >
                 {stateOptions.map(option => (
